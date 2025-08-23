@@ -79,7 +79,7 @@ async def search_founders(criteria: SearchCriteria):
         query = f"{criteria.industry or ''} {' '.join(criteria.founder_signals)} {' '.join(criteria.technical_signals)}".strip()
         
         print(f"🔍 Searching for: {query}")
-        profiles = harvest_client.search_profiles(query, criteria.max_results)
+        profiles = harvest_client.search_profiles(query, criteria.max_results,criteria=criteria.dict())
         print(f"📋 Found {len(profiles)} profiles")
         
         # Step 2: Analyze each profile with AI

@@ -30,8 +30,10 @@ class AIAnalyzer:
             Analysis with summary, tier, and justification
         """
         
+        print(f"🤖 GEMINI DEBUG: Analyzing {profile.get('name', 'Unknown')}")
+        
         if not self.api_key:
-            # Use mock AI analysis for testing
+            print("⚠️  No Gemini API key - using mock analysis")
             return self._get_mock_analysis(profile, criteria)
         
         try:
@@ -45,53 +47,73 @@ class AIAnalyzer:
             return self._parse_gemini_response(response, profile)
             
         except Exception as e:
-            print(f"AI Analysis error: {e}")
+            print(f"❌ AI Analysis error: {e}")
             # Fallback to mock analysis
             return self._get_mock_analysis(profile, criteria)
     
     def _create_analysis_prompt(self, profile: Dict, criteria: Dict) -> str:
-        """Create a prompt for AI analysis"""
+        """Create an enhanced prompt for AI analysis with clear Tier A criteria"""
         
-        prompt = f"""
-        Analyze this founder candidate against the given criteria:
+        prompt = f"""You are an expert founder sourcing analyst. Analyze this candidate against the criteria and assign the appropriate tier.
+            CANDIDATE PROFILE:
+            Name: {profile.get('name', 'Unknown')}
+            Current Role: {profile.get('current_role', 'Unknown')}
+            Company: {profile.get('current_company', 'Unknown')}
+            Location: {profile.get('location', 'Unknown')}
+            Profile Summary: {profile.get('summary', 'No additional info')}
 
-        CANDIDATE PROFILE:
-        Name: {profile.get('name', 'Unknown')}
-        Current Role: {profile.get('current_role', 'Unknown')}
-        Company: {profile.get('current_company', 'Unknown')}
-        Summary: {profile.get('summary', 'No summary available')}
-        Experience: {json.dumps(profile.get('experience', []), indent=2)}
-        Education: {json.dumps(profile.get('education', []), indent=2)}
+            SEARCH CRITERIA:
+            Industry: {criteria.get('industry', 'Any')}
+            Required Experience: {criteria.get('experience_depth', 'Any')} years
+            Founder Signals Required: {criteria.get('founder_signals', [])}
+            Technical Signals Required: {criteria.get('technical_signals', [])}
 
-        SEARCH CRITERIA:
-        Industry: {criteria.get('industry', 'Any')}
-        Experience Required: {criteria.get('experience_depth', 'Any')} years
-        Founder Signals: {criteria.get('founder_signals', [])}
-        Technical Signals: {criteria.get('technical_signals', [])}
+            TIER ASSIGNMENT RULES:
+            **TIER A** (Excellent Match - 85%+ criteria met):
+            - Shows MULTIPLE founder signals (founder + CEO/CTO + startup experience)
+            - Clear industry match with specific expertise
+            - Evidence of significant experience (senior roles, multiple companies, or clear depth)
+            - Technical signals present if required (CTO, engineering, product)
+            - Strong overall profile indicating proven track record
 
-        Please provide:
-        1. PROFILE_TYPE: "business" or "technical" 
-        2. SUMMARY: 2-4 line compelling summary of this candidate
-        3. TIER: "A" (excellent match), "B" (good match), or "C" (okay match)
-        4. JUSTIFICATION: Detailed explanation of why they match the criteria
-        5. CONFIDENCE: Score from 0.0 to 1.0
+            **TIER B** (Good Match - 60-84% criteria met):
+            - Shows SOME founder signals OR strong technical background
+            - Industry relevance but not perfect match
+            - Some experience indicators but not fully clear
+            - Missing 1-2 key criteria but overall positive
 
-        Format your response as JSON:
-        {{
-            "profile_type": "business|technical",
-            "summary": "2-4 line summary here",
-            "tier": "A|B|C", 
-            "match_justification": "detailed justification",
-            "confidence_score": 0.85
-        }}
-        """
+            **TIER C** (Possible Match - 40-59% criteria met):
+            - Minimal criteria match
+            - Unclear experience or background
+            - Weak industry connection
+            - Missing most key signals
+
+            ANALYSIS INSTRUCTIONS:
+            1. Be generous with Tier A for candidates showing multiple strong signals
+            2. Look for implicit signals (CTO implies technical expertise, Co-founder implies startup experience)
+            3. Consider compound roles (CTO & Co-founder = multiple signals)
+            4. Weight current roles heavily (current CTO at startup = strong technical + startup leadership)
+
+            Respond with ONLY this JSON format:
+            {{
+                "profile_type": "business|technical",
+                "summary": "Compelling 2-line summary highlighting strongest qualifications",
+                "tier": "A|B|C", 
+                "match_justification": "Detailed explanation focusing on how multiple criteria are met",
+                "confidence_score": 0.85
+            }}
+            """
         
         return prompt
     
     def _call_gemini_api(self, prompt: str) -> Dict:
-        """Make API call to Google Gemini"""
+        """Make API call to Google Gemini with advanced model"""
         
-        url = f"{self.base_url}/models/gemini-pro:generateContent"
+        print(f"🤖 GEMINI DEBUG: Making API call")
+        print(f"🔑 API Key exists: {bool(self.api_key)}")
+        
+        # Use Gemini 1.5 Pro (better than the basic gemini-pro)
+        url = f"{self.base_url}/models/gemini-1.5-pro:generateContent"
         
         headers = {
             "Content-Type": "application/json",
@@ -102,14 +124,30 @@ class AIAnalyzer:
                 "parts": [{
                     "text": prompt
                 }]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.3,        # Lower temperature for more consistent JSON
+                "topK": 20,                # Fewer tokens for more focused responses
+                "topP": 0.8,               # More focused sampling
+                "maxOutputTokens": 512,    # Shorter responses
+            }
         }
         
-        # Add API key to URL (Gemini uses query parameter)
+        # Add API key to URL
         url += f"?key={self.api_key}"
         
+        print(f"📞 Calling: {url}")
+        print(f"📋 Payload size: {len(str(data))} characters")
+        
         response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
+        
+        print(f"📊 Response status: {response.status_code}")
+        print(f"📝 Response headers: {dict(response.headers)}")
+        print(f"🔤 Response text (first 1000 chars): {response.text[:1000]}")
+        
+        if response.status_code != 200:
+            print(f"❌ Gemini API error: {response.text}")
+            raise requests.RequestException(f"API returned {response.status_code}: {response.text}")
         
         return response.json()
     
@@ -117,26 +155,44 @@ class AIAnalyzer:
         """Parse Gemini API response"""
         
         try:
+            print(f"📄 Gemini response structure: {list(response.keys()) if isinstance(response, dict) else 'Not a dict'}")
+            
             # Extract text from Gemini response
-            content = response["candidates"][0]["content"]["parts"][0]["text"]
-            
-            # Try to parse as JSON
-            analysis = json.loads(content)
-            
-            # Add profile info
-            analysis.update({
-                "name": profile.get("name", "Unknown"),
-                "linkedin_url": profile.get("linkedin_url", ""),
-                "email": profile.get("email", ""),
-                "current_company": profile.get("current_company", ""),
-                "current_role": profile.get("current_role", "")
-            })
-            
-            return analysis
-            
-        except (KeyError, json.JSONDecodeError) as e:
-            print(f"Failed to parse Gemini response: {e}")
-            return self._get_mock_analysis(profile, {})
+            if "candidates" in response and len(response["candidates"]) > 0:
+                content = response["candidates"][0]["content"]["parts"][0]["text"]
+                print(f"🔤 Gemini raw content: {content[:200]}")
+                
+                # Clean the content - remove markdown formatting
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content.replace("```json", "").replace("```", "").strip()
+                
+                # Try to parse as JSON
+                analysis = json.loads(content)
+                
+                # Add profile info
+                analysis.update({
+                    "name": profile.get("name", "Unknown"),
+                    "linkedin_url": profile.get("linkedin_url", ""),
+                    "email": profile.get("email", ""),
+                    "current_company": profile.get("current_company", ""),
+                    "current_role": profile.get("current_role", ""),
+                    "contacts": [profile.get("linkedin_url", "")],
+                    "source_links": [profile.get("linkedin_url", "")]
+                })
+                
+                print(f"✅ Successfully parsed Gemini response for {profile.get('name')}")
+                return analysis
+            else:
+                print(f"❌ No candidates in Gemini response")
+                
+        except (KeyError, json.JSONDecodeError, IndexError) as e:
+            print(f"❌ Failed to parse Gemini response: {e}")
+            if "candidates" in response:
+                print(f"📊 Candidates structure: {response['candidates']}")
+        
+        print(f"🔄 Using mock analysis fallback")
+        return self._get_mock_analysis(profile, {})
     
     def _get_mock_analysis(self, profile: Dict, criteria: Dict) -> Dict:
         """Generate mock analysis for testing"""
@@ -147,13 +203,14 @@ class AIAnalyzer:
         summary_text = profile.get("summary", "")
         
         # Simple logic for mock analysis
-        is_technical = any(word in role.lower() for word in ["cto", "engineer", "technical", "developer"])
-        is_founder = any(word in role.lower() for word in ["founder", "ceo", "co-founder"])
+        is_technical = any(word in role.lower() for word in ["cto", "engineer", "technical", "developer", "ai", "tech"])
+        is_founder = any(word in role.lower() for word in ["founder", "ceo", "co-founder", "fondatore"])
+        has_experience = any(word in role.lower() for word in ["senior", "lead", "director", "vp", "chief"])
         
         # Determine tier based on simple rules
-        if is_founder and (is_technical or "years" in summary_text):
+        if is_founder and (is_technical or has_experience):
             tier = "A"
-        elif is_founder or is_technical:
+        elif is_founder or (is_technical and has_experience):
             tier = "B"  
         else:
             tier = "C"
@@ -162,17 +219,17 @@ class AIAnalyzer:
             "name": name,
             "profile_type": "technical" if is_technical else "business",
             "summary": f"{name} brings {role} experience at {company}. " + 
-                      (summary_text[:100] + "..." if len(summary_text) > 100 else summary_text),
+                      (summary_text[:80] + "..." if len(summary_text) > 80 else summary_text or "Professional with relevant background."),
             "tier": tier,
             "match_justification": f"Candidate shows {'technical leadership' if is_technical else 'business experience'} " +
                                  f"{'and founder background' if is_founder else ''}. " +
-                                 f"Current role as {role} demonstrates relevant expertise.",
+                                 f"Current role as {role} demonstrates relevant expertise for the search criteria.",
             "confidence_score": 0.75,
             "linkedin_url": profile.get("linkedin_url", ""),
             "email": profile.get("email", ""),
             "current_company": company,
             "current_role": role,
-            "contacts": [profile.get("linkedin_url", ""), profile.get("email", "")],
+            "contacts": [profile.get("linkedin_url", "")],
             "source_links": [profile.get("linkedin_url", "")]
         }
 
