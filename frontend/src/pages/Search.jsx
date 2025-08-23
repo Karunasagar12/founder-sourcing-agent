@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import SearchForm from '../components/SearchForm'
 import { searchAPI } from '../services/api'
-import { AlertCircle, CheckCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Lock, Users } from 'lucide-react'
 
 const Search = () => {
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
   const [healthStatus, setHealthStatus] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -46,6 +48,23 @@ const Search = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Welcome Message for Authenticated Users */}
+      {isAuthenticated && (
+        <div className="mb-6">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 flex items-center space-x-3">
+            <Users className="h-5 w-5 text-primary-600" />
+            <div>
+              <h3 className="text-sm font-medium text-primary-800">
+                Welcome back, {user?.first_name || 'User'}!
+              </h3>
+              <p className="text-sm text-primary-700">
+                Ready to find your next founder? Start your search below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Health Status */}
       {healthStatus && (
         <div className="mb-6">

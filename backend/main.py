@@ -19,6 +19,12 @@ from services.ai_analyzer import AIAnalyzer
 from services.export_service import ExportService
 from models import SearchCriteria, Candidate
 
+# Import authentication modules
+from auth_router import router as auth_router
+from database import create_tables
+from auth_models import Base
+from database import engine
+
 # Load environment variables
 load_dotenv()
 
@@ -56,6 +62,12 @@ harvest_client = HarvestClient()
 ai_analyzer = AIAnalyzer()
 export_service = ExportService()
 
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+# Include authentication router
+app.include_router(auth_router)
+
 @app.get("/")
 async def root():
     """Welcome message"""
@@ -66,7 +78,8 @@ async def root():
         "endpoints": {
             "search": "/search",
             "health": "/health", 
-            "docs": "/docs"
+            "docs": "/docs",
+            "auth": "/auth"
         },
         "frontend_url": "Open your index.html file or visit /static/index.html if serving static files"
     }

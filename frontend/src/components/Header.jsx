@@ -1,9 +1,12 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Search, Users, BarChart3 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import UserMenu from './user/UserMenu'
 
 const Header = () => {
   const location = useLocation()
+  const { isAuthenticated } = useAuth()
 
   const navItems = [
     { path: '/', label: 'Search', icon: Search },
@@ -23,27 +26,52 @@ const Header = () => {
             </div>
           </div>
 
-          <nav className="flex items-center space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.path
-              
-              return (
+          <div className="flex items-center space-x-4">
+            {/* Navigation */}
+            {isAuthenticated && (
+              <nav className="flex items-center space-x-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = location.pathname === item.path
+                  
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        isActive
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </nav>
+            )}
+
+            {/* User Menu or Auth Links */}
+            {isAuthenticated ? (
+              <UserMenu />
+            ) : (
+              <div className="flex items-center space-x-3">
                 <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                    isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  to="/login"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200"
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                  Sign in
                 </Link>
-              )
-            })}
-          </nav>
+                <Link
+                  to="/signup"
+                  className="btn-primary text-sm"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
