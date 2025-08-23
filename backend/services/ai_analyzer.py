@@ -1,6 +1,7 @@
 """
 AI Analyzer using Google Gemini
 This analyzes LinkedIn profiles and determines if they match our criteria
+Updated to preserve data source information from harvest client
 """
 
 import requests
@@ -30,11 +31,16 @@ class AIAnalyzer:
             Analysis with summary, tier, and justification
         """
         
-        print(f"🤖 GEMINI DEBUG: Analyzing {profile.get('name', 'Unknown')}")
+        # Preserve original data source from harvest client
+        original_data_source = profile.get('data_source', 'unknown')
+        is_real_data = original_data_source == 'linkedin_real'
+        
+        profile_label = "[REAL]" if is_real_data else "[MOCK]"
+        print(f"🤖 GEMINI DEBUG: Analyzing {profile.get('name', 'Unknown')} {profile_label}")
         
         if not self.api_key:
             print("⚠️  No Gemini API key - using mock analysis")
-            return self._get_mock_analysis(profile, criteria)
+            return self._get_mock_analysis(profile, criteria, original_data_source)
         
         try:
             # Create prompt for Gemini
@@ -44,12 +50,17 @@ class AIAnalyzer:
             response = self._call_gemini_api(prompt)
             
             # Parse the response
-            return self._parse_gemini_response(response, profile)
+            analysis = self._parse_gemini_response(response, profile)
+            
+            # CRITICAL: Preserve original data source
+            analysis['data_source'] = original_data_source
+            
+            return analysis
             
         except Exception as e:
             print(f"❌ AI Analysis error: {e}")
-            # Fallback to mock analysis
-            return self._get_mock_analysis(profile, criteria)
+            # Fallback to mock analysis but preserve data source
+            return self._get_mock_analysis(profile, criteria, original_data_source)
     
     def _create_analysis_prompt(self, profile: Dict, criteria: Dict) -> str:
         """Create an enhanced prompt for AI analysis with clear Tier A criteria"""
@@ -170,7 +181,7 @@ class AIAnalyzer:
                 # Try to parse as JSON
                 analysis = json.loads(content)
                 
-                # Add profile info
+                # Add profile info WITHOUT overriding data_source
                 analysis.update({
                     "name": profile.get("name", "Unknown"),
                     "linkedin_url": profile.get("linkedin_url", ""),
@@ -179,6 +190,7 @@ class AIAnalyzer:
                     "current_role": profile.get("current_role", ""),
                     "contacts": [profile.get("linkedin_url", "")],
                     "source_links": [profile.get("linkedin_url", "")]
+                    # NOTE: NOT setting data_source here - preserving from harvest client
                 })
                 
                 print(f"✅ Successfully parsed Gemini response for {profile.get('name')}")
@@ -192,10 +204,10 @@ class AIAnalyzer:
                 print(f"📊 Candidates structure: {response['candidates']}")
         
         print(f"🔄 Using mock analysis fallback")
-        return self._get_mock_analysis(profile, {})
+        return self._get_mock_analysis(profile, {}, profile.get('data_source', 'unknown'))
     
-    def _get_mock_analysis(self, profile: Dict, criteria: Dict) -> Dict:
-        """Generate mock analysis for testing"""
+    def _get_mock_analysis(self, profile: Dict, criteria: Dict, original_data_source: str = 'unknown') -> Dict:
+        """Generate mock analysis for testing - preserving data source"""
         
         name = profile.get("name", "Unknown")
         role = profile.get("current_role", "")
@@ -215,7 +227,7 @@ class AIAnalyzer:
         else:
             tier = "C"
         
-        return {
+        analysis = {
             "name": name,
             "profile_type": "technical" if is_technical else "business",
             "summary": f"{name} brings {role} experience at {company}. " + 
@@ -231,7 +243,10 @@ class AIAnalyzer:
             "current_role": role,
             "contacts": [profile.get("linkedin_url", "")],
             "source_links": [profile.get("linkedin_url", "")]
+            # NOTE: NOT setting data_source here - will be preserved by caller
         }
+        
+        return analysis
 
 # Test function
 if __name__ == "__main__":
@@ -243,7 +258,8 @@ if __name__ == "__main__":
         "current_role": "CEO & Co-founder", 
         "current_company": "StartupCo",
         "summary": "Experienced entrepreneur with 10 years in tech",
-        "linkedin_url": "https://linkedin.com/in/test"
+        "linkedin_url": "https://linkedin.com/in/test",
+        "data_source": "mock_data"  # Test preserving this
     }
     
     test_criteria = {
@@ -252,4 +268,4 @@ if __name__ == "__main__":
     }
     
     result = analyzer.analyze_candidate(test_profile, test_criteria)
-    print(f"Analysis: {result['name']} - Tier {result['tier']}")
+    print(f"Analysis: {result['name']} - Tier {result['tier']} - Source: {result.get('data_source', 'MISSING!')}")

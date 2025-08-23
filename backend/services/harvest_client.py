@@ -1,12 +1,14 @@
 """
 Harvest API client for LinkedIn data
 This connects to Harvest API to search for LinkedIn profiles
+Updated with enhanced mock data and clear data source labeling
 """
 
 import requests
 import os
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+import random
 
 load_dotenv()
 
@@ -37,8 +39,8 @@ class HarvestClient:
         print(f"🔑 API Key exists: {bool(self.api_key)}")
         
         if not self.api_key:
-            print("⚠️  No API key found - using mock data")
-            return self._get_mock_profiles(query, max_results)
+            print("⚠️  No API key found - using enhanced mock data only")
+            return self._get_enhanced_mock_profiles(query, max_results)
         
         try:
             # Use the exact endpoint from documentation
@@ -181,6 +183,7 @@ class HarvestClient:
                                 "profile_id": profile.get("id", ""),
                                 "photo": profile.get("photo", ""),
                                 "hidden": profile.get("hidden", True),
+                                "data_source": "linkedin_real",  # Mark as real LinkedIn data
                                 # Add filter match info for debugging
                                 "matched_filters": {
                                     "school": params.get("school"),
@@ -190,16 +193,29 @@ class HarvestClient:
                                 }
                             }
                             
-                            print(f"  {idx+1}. {name} - {position[:50]}...")
+                            print(f"  {idx+1}. {name} - {position[:50]}... [REAL LINKEDIN DATA]")
                             profiles.append(converted_profile)
                     
                     if profiles:
-                        print(f"✅ Successfully found {len(profiles)} profiles using targeted filters!")
-                        return profiles
+                        print(f"✅ Successfully found {len(profiles)} REAL LinkedIn profiles!")
+                        
+                        # Smart Supplementation: Add mock data if we didn't get enough real profiles
+                        if len(profiles) < max_results:
+                            mock_needed = max_results - len(profiles)
+                            print(f"📋 Need {mock_needed} more profiles to reach requested {max_results}")
+                            print(f"🎭 Adding {mock_needed} mock profiles to supplement real data")
+                            
+                            mock_profiles = self._get_enhanced_mock_profiles(query, mock_needed)
+                            combined_profiles = profiles + mock_profiles
+                            
+                            print(f"✅ Final result: {len(profiles)} real + {len(mock_profiles)} mock = {len(combined_profiles)} total profiles")
+                            return combined_profiles
+                        else:
+                            print(f"🎯 Got enough real profiles ({len(profiles)}) - no mock data needed")
+                            return profiles
                     else:
-                        print(f"⚠️  No profiles found with current filters")
-                        print(f"💡 Suggestion: Try broader search terms or different filter combinations")
-                        print(f"📊 Full response structure: {data}")
+                        print(f"⚠️  No real profiles found - using enhanced mock data only")
+                        return self._get_enhanced_mock_profiles(query, max_results)
                 
                 except ValueError as e:
                     print(f"❌ JSON parsing error: {e}")
@@ -213,13 +229,13 @@ class HarvestClient:
                 print(f"❌ API returned status {response.status_code}")
                 print(f"🔤 Error response: {response.text}")
             
-            print("🔄 Using mock data as fallback")
-            return self._get_mock_profiles(query, max_results)
+            print("🔄 API call failed - using enhanced mock data as complete fallback")
+            return self._get_enhanced_mock_profiles(query, max_results)
             
         except requests.RequestException as e:
             print(f"❌ Harvest API error: {e}")
-            print(f"🔄 Falling back to mock data")
-            return self._get_mock_profiles(query, max_results)
+            print(f"🔄 Using enhanced mock data as complete fallback")
+            return self._get_enhanced_mock_profiles(query, max_results)
     
     def _build_linkedin_url(self, profile: Dict) -> str:
         """Build LinkedIn URL from profile data"""
@@ -366,54 +382,235 @@ class HarvestClient:
         
         return education
     
-    def _get_mock_profiles(self, query: str, max_results: int) -> List[Dict]:
-        """Generate mock LinkedIn profiles for testing"""
+    def _get_enhanced_mock_profiles(self, query: str, max_results: int) -> List[Dict]:
+        """Generate enhanced mock LinkedIn profiles with clear labeling"""
         
-        # Create mock profiles based on query
-        mock_profiles = []
+        print(f"🎭 Generating {max_results} MOCK profiles for query: '{query}'")
+        print(f"💡 These profiles are clearly labeled as mock data for testing purposes")
         
-        if "france" in query.lower() or "french" in query.lower():
-            mock_profiles = [
-                {
-                    "name": "Marie Dubois",
-                    "linkedin_url": "https://linkedin.com/in/mariedubois",
-                    "current_company": "French Tech Startup",
-                    "current_role": "Co-founder & CEO",
-                    "location": "Paris, France",
-                    "summary": "INSEAD MBA graduate, serial entrepreneur in fintech. Founded 2 startups, 8 years experience in financial technology.",
-                    "experience": [{"company": "French Tech Startup", "role": "Co-founder", "years": "2020-Present"}],
-                    "education": [{"school": "INSEAD", "degree": "MBA"}],
-                    "email": "marie@frenchtech.fr"
-                },
-                {
-                    "name": "Pierre Martin",
-                    "linkedin_url": "https://linkedin.com/in/pierremartin",
-                    "current_company": "AI Innovation Lab",
-                    "current_role": "CTO & Co-founder", 
-                    "location": "Lyon, France",
-                    "summary": "HEC Paris alumnus, technical founder with 12 years in AI and machine learning. Expert in deep learning applications.",
-                    "experience": [{"company": "AI Innovation Lab", "role": "CTO", "years": "2018-Present"}],
-                    "education": [{"school": "HEC Paris", "degree": "Grande École"}],
-                    "email": "pierre@ailab.fr"
-                }
-            ]
-        else:
-            # Default mock profiles
-            mock_profiles = [
-                {
-                    "name": "Sarah Chen",
-                    "linkedin_url": "https://linkedin.com/in/sarahchen",
-                    "current_company": "TechFlow AI",
-                    "current_role": "CEO & Co-founder",
-                    "location": "San Francisco, CA",
-                    "summary": "Serial entrepreneur with 12 years in fintech. Previously founded PayFlow (acquired by Stripe).",
-                    "experience": [{"company": "PayFlow", "role": "Founder & CEO", "years": "2018-2022"}],
-                    "education": [{"school": "Stanford University", "degree": "MS Computer Science"}],
-                    "email": "sarah@techflow.ai"
-                }
-            ]
+        # Enhanced base profiles with variety
+        base_profiles = [
+            # Fintech founders
+            {
+                "name": "Mock: Sarah Chen",
+                "linkedin_url": "https://linkedin.com/in/mock-sarahchen",
+                "current_company": "FinFlow AI (Mock Company)",
+                "current_role": "CEO & Co-founder (Mock Profile)",
+                "location": "San Francisco, CA",
+                "summary": "MOCK DATA: Serial entrepreneur with 12 years in fintech. Previously founded PayFlow (acquired by Stripe). Expert in financial technology and AI-powered payment solutions.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Marcus Rodriguez",
+                "linkedin_url": "https://linkedin.com/in/mock-marcusrodriguez", 
+                "current_company": "BlockChain Ventures (Mock Company)",
+                "current_role": "CTO & Technical Co-founder (Mock Profile)",
+                "location": "Austin, TX",
+                "summary": "MOCK DATA: Technical leader with 15 years building financial platforms. Led engineering teams at 3 fintech startups, 2 successful exits. Expert in blockchain and distributed systems.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Dr. Elena Vasquez",
+                "linkedin_url": "https://linkedin.com/in/mock-elenavasquez",
+                "current_company": "MedTech Innovations (Mock Company)", 
+                "current_role": "Founder & Chief Science Officer (Mock Profile)",
+                "location": "Boston, MA",
+                "summary": "MOCK DATA: PhD in Biotechnology with 10+ years experience. Founded 2 biotech startups, 15 patents in drug discovery. Expert in AI-driven pharmaceutical research.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            
+            # AI/Tech founders
+            {
+                "name": "Mock: James Park",
+                "linkedin_url": "https://linkedin.com/in/mock-jamespark",
+                "current_company": "DeepMind Analytics (Mock Company)",
+                "current_role": "Founder & CEO (Mock Profile)",
+                "location": "Seattle, WA", 
+                "summary": "MOCK DATA: AI researcher turned entrepreneur. Former Google Brain scientist, founded 3 AI startups. Expert in machine learning and computer vision applications.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Lisa Thompson",
+                "linkedin_url": "https://linkedin.com/in/mock-lisathompson",
+                "current_company": "SaaS Growth Partners (Mock Company)",
+                "current_role": "Serial Entrepreneur & Investor (Mock Profile)",
+                "location": "New York, NY",
+                "summary": "MOCK DATA: Built and sold 4 SaaS companies over 18 years. Current angel investor and board member at 12 startups. Expert in B2B software and growth strategies.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: David Kim",
+                "linkedin_url": "https://linkedin.com/in/mock-davidkim",
+                "current_company": "Quantum Computing Lab (Mock Company)",
+                "current_role": "CTO & Co-founder (Mock Profile)", 
+                "location": "Palo Alto, CA",
+                "summary": "MOCK DATA: MIT PhD in Computer Science, 8 years at IBM Research. Co-founded quantum computing startup with $50M Series A. 25 patents in quantum algorithms.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            
+            # Industry-specific founders
+            {
+                "name": "Mock: Maria Santos",
+                "linkedin_url": "https://linkedin.com/in/mock-mariasantos",
+                "current_company": "CleanTech Ventures (Mock Company)",
+                "current_role": "Founder & President (Mock Profile)",
+                "location": "Denver, CO",
+                "summary": "MOCK DATA: Clean energy entrepreneur with 14 years experience. Founded 2 renewable energy companies, raised $200M+ in funding. Board member at 5 cleantech startups.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Ahmed Hassan",
+                "linkedin_url": "https://linkedin.com/in/mock-ahmedhassan",
+                "current_company": "EdTech Solutions (Mock Company)",
+                "current_role": "Founder & Chief Product Officer (Mock Profile)",
+                "location": "Chicago, IL",
+                "summary": "MOCK DATA: Former teacher turned edtech entrepreneur. Built learning platforms used by 2M+ students. Expert in educational technology and product development.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Jennifer Wu",
+                "linkedin_url": "https://linkedin.com/in/mock-jenniferwu",
+                "current_company": "BioAI Labs (Mock Company)",
+                "current_role": "Founder & CTO (Mock Profile)",
+                "location": "San Diego, CA",
+                "summary": "MOCK DATA: Biotech engineer with Stanford PhD. Founded AI-powered drug discovery platform. Former Genentech researcher with 20+ publications in Nature/Science.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Robert Johnson",
+                "linkedin_url": "https://linkedin.com/in/mock-robertjohnson", 
+                "current_company": "Enterprise Software Co (Mock Company)",
+                "current_role": "Serial Founder & Board Chairman (Mock Profile)",
+                "location": "Atlanta, GA",
+                "summary": "MOCK DATA: 20-year enterprise software veteran. Founded and sold 3 companies (total exits: $500M+). Currently chairman at 4 B2B software startups.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            
+            # International founders  
+            {
+                "name": "Mock: Pierre Dubois",
+                "linkedin_url": "https://linkedin.com/in/mock-pierredubois",
+                "current_company": "European Fintech Hub (Mock Company)",
+                "current_role": "Co-founder & Managing Director (Mock Profile)",
+                "location": "London, UK",
+                "summary": "MOCK DATA: INSEAD MBA, former Goldman Sachs. Founded 2 fintech companies in Europe. Expert in financial regulations and cross-border payment systems.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Priya Sharma",
+                "linkedin_url": "https://linkedin.com/in/mock-priyasharma",
+                "current_company": "Mumbai Tech Ventures (Mock Company)", 
+                "current_role": "Founder & Technical Director (Mock Profile)",
+                "location": "Mumbai, India",
+                "summary": "MOCK DATA: IIT graduate with 12 years in software development. Founded 3 tech startups serving Indian market. Expert in mobile-first product development.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Klaus Mueller",
+                "linkedin_url": "https://linkedin.com/in/mock-klausmueller",
+                "current_company": "German Innovation Labs (Mock Company)",
+                "current_role": "Founder & Chief Engineer (Mock Profile)", 
+                "location": "Berlin, Germany",
+                "summary": "MOCK DATA: Technical University Munich PhD. Founded IoT startup acquired by Siemens. Expert in industrial automation and Industry 4.0 technologies.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            
+            # Diverse experience levels
+            {
+                "name": "Mock: Emily Carter",
+                "linkedin_url": "https://linkedin.com/in/mock-emilycarter",
+                "current_company": "NextGen Startups (Mock Company)",
+                "current_role": "Founder & CEO (Mock Profile)",
+                "location": "Portland, OR",
+                "summary": "MOCK DATA: Former McKinsey consultant, 8 years in startup ecosystem. Founded sustainability-focused marketplace. Expertise in business strategy and operations.",
+                "profile_type": "business",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            },
+            {
+                "name": "Mock: Michael Brown",
+                "linkedin_url": "https://linkedin.com/in/mock-michaelbrown",
+                "current_company": "Cloud Infrastructure Inc (Mock Company)",
+                "current_role": "Co-founder & VP Engineering (Mock Profile)", 
+                "location": "Dallas, TX",
+                "summary": "MOCK DATA: Former Amazon engineer with 10 years experience. Co-founded cloud security startup. Expert in distributed systems and cybersecurity.",
+                "profile_type": "technical",
+                "data_source": "mock_data",
+                "mock_note": "This is simulated data for testing purposes"
+            }
+        ]
         
-        return mock_profiles[:max_results]
+        # Filter profiles based on query for more realistic results
+        filtered_profiles = []
+        query_lower = query.lower()
+        
+        for profile in base_profiles:
+            # Check if profile matches query criteria
+            match_score = 0
+            profile_text = f"{profile['summary']} {profile['current_role']} {profile['current_company']}".lower()
+            
+            # Industry matching
+            if any(term in profile_text for term in ['fintech', 'financial']) and 'fintech' in query_lower:
+                match_score += 3
+            if any(term in profile_text for term in ['ai', 'artificial intelligence', 'machine learning']) and ('ai' in query_lower or 'artificial' in query_lower):
+                match_score += 3
+            if 'technology' in query_lower and any(term in profile_text for term in ['tech', 'software', 'engineering']):
+                match_score += 2
+                
+            # Founder signals  
+            if 'founder' in query_lower and 'founder' in profile_text:
+                match_score += 2
+            if 'cto' in query_lower and 'cto' in profile_text:
+                match_score += 2
+            if 'serial' in query_lower and ('serial' in profile_text or 'founded' in profile_text):
+                match_score += 1
+                
+            # Add some randomness for variety
+            match_score += random.random()
+            
+            filtered_profiles.append((profile, match_score))
+        
+        # Sort by match score and take top results
+        filtered_profiles.sort(key=lambda x: x[1], reverse=True)
+        selected_profiles = [p[0] for p in filtered_profiles[:max_results]]
+        
+        # If we still don't have enough, add some generic profiles
+        while len(selected_profiles) < max_results and len(selected_profiles) < len(base_profiles):
+            remaining = [p for p in base_profiles if p not in selected_profiles]
+            if remaining:
+                selected_profiles.extend(remaining[:max_results - len(selected_profiles)])
+            else:
+                break
+                
+        print(f"✅ Generated {len(selected_profiles)} MOCK profiles matching '{query}'")
+        print(f"🎭 All mock profiles clearly labeled with 'Mock:' prefix and data source")
+        return selected_profiles[:max_results]
 
 # Test function
 if __name__ == "__main__":
@@ -421,4 +618,4 @@ if __name__ == "__main__":
     profiles = client.search_profiles("founder France INSEAD fintech", 3)
     print(f"Found {len(profiles)} profiles")
     for profile in profiles:
-        print(f"- {profile['name']} at {profile['current_company']}")
+        print(f"- {profile['name']} at {profile['current_company']} [{profile.get('data_source', 'unknown')}]")
