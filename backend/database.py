@@ -12,6 +12,10 @@ def get_database_url():
     """Get database URL based on environment"""
     environment = os.getenv("ENVIRONMENT", "development")
     
+    # Check if DATABASE_URL is provided (Cloud Run deployment)
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL")
+    
     if environment == "production":
         # Production: Cloud SQL PostgreSQL
         db_host = os.getenv("DB_HOST")

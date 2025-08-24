@@ -78,8 +78,9 @@ harvest_client = HarvestClient()
 ai_analyzer = AIAnalyzer()
 export_service = ExportService()
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables (only in development)
+if os.getenv("ENVIRONMENT", "development") == "development":
+    Base.metadata.create_all(bind=engine)
 
 # Include authentication router
 app.include_router(auth_router)
