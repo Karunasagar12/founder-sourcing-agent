@@ -117,12 +117,24 @@ async def health_check():
     }
 
 @app.post("/search")
-async def search_founders():
-    """Temporary search endpoint for debugging"""
-    return {
-        "message": "Search endpoint temporarily disabled for debugging",
-        "status": "maintenance"
-    }
+async def search_founders(criteria: SearchCriteria):
+    """Main search endpoint - this is where the magic happens!"""
+    try:
+        print(f"🔍 SEARCH REQUEST RECEIVED")
+        print(f"📋 Criteria: {criteria}")
+        
+        # For now, return a simple response
+        return {
+            "success": True,
+            "candidates": [],
+            "summary": {"total_candidates": 0, "tier_distribution": {"A": 0, "B": 0, "C": 0}},
+            "message": "Search endpoint is working! Full functionality coming soon.",
+            "search_query": "test"
+        }
+        
+    except Exception as e:
+        print(f"❌ Search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/download/{filename:path}")
 async def download_export(filename: str):
@@ -152,7 +164,7 @@ async def auth_test():
     except Exception as e:
         return {"message": f"Authentication module failed to load: {str(e)}"}
 
-@app.post("/auth/signup")
+@app.get("/auth/signup")
 async def signup():
     """Lazy loading signup endpoint"""
     try:
@@ -162,7 +174,7 @@ async def signup():
     except Exception as e:
         return {"message": f"Signup endpoint failed to load: {str(e)}"}
 
-@app.post("/auth/login")
+@app.get("/auth/login")
 async def login():
     """Lazy loading login endpoint"""
     try:
