@@ -10,6 +10,6 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-google-cloud-sql-connector==1.4.0
+cloud-sql-python-connector==1.4.0
 google-auth==2.23.4
 google-cloud-logging==3.8.0
