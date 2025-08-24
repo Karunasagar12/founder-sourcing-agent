@@ -13,17 +13,17 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-# Import our services
-from services.harvest_client import HarvestClient
-from services.ai_analyzer import AIAnalyzer  
-from services.export_service import ExportService
-from models import SearchCriteria, Candidate
+# Import our services (commented out for debugging)
+# from services.harvest_client import HarvestClient
+# from services.ai_analyzer import AIAnalyzer  
+# from services.export_service import ExportService
+# from models import SearchCriteria, Candidate
 
-# Import authentication modules
-from auth_router import router as auth_router
-from database import create_tables
-from auth_models import Base
-from database import engine
+# Import authentication modules (commented out for debugging)
+# from auth_router import router as auth_router
+# from database import create_tables
+# from auth_models import Base
+# from database import engine
 
 # Load environment variables
 load_dotenv()
@@ -73,17 +73,17 @@ app.add_middleware(
 if os.path.exists("frontend"):
     app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-# Initialize services
-harvest_client = HarvestClient()
-ai_analyzer = AIAnalyzer()
-export_service = ExportService()
+# Initialize services (commented out for debugging)
+# harvest_client = HarvestClient()
+# ai_analyzer = AIAnalyzer()
+# export_service = ExportService()
 
 # Create database tables (only in development)
-if os.getenv("ENVIRONMENT", "development") == "development":
-    Base.metadata.create_all(bind=engine)
+# if os.getenv("ENVIRONMENT", "development") == "development":
+#     Base.metadata.create_all(bind=engine)
 
-# Include authentication router
-app.include_router(auth_router)
+# Include authentication router (commented out for debugging)
+# app.include_router(auth_router)
 
 @app.get("/")
 async def root():
@@ -109,11 +109,11 @@ async def health_check():
     return {
         "status": "healthy",
         "services": {
-            "harvest_api": "configured" if harvest_client.api_key else "mock_mode",
-            "gemini_api": "configured" if ai_analyzer.api_key else "mock_mode"
+            "harvest_api": "disabled_for_debugging",
+            "gemini_api": "disabled_for_debugging"
         },
         "cors": "enabled",
-        "message": "All systems operational"
+        "message": "Basic app is operational"
     }
 
 @app.post("/search")
