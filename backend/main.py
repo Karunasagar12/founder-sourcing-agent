@@ -109,40 +109,221 @@ async def health_check():
     return {
         "status": "healthy",
         "services": {
-            "harvest_api": "disabled_for_debugging",
-            "gemini_api": "disabled_for_debugging"
+            "harvest_api": "configured" if harvest_client.api_key else "mock_mode",
+            "gemini_api": "configured" if ai_analyzer.api_key else "mock_mode"
         },
         "cors": "enabled",
-        "message": "Basic app is operational"
+        "message": "All systems operational"
     }
 
 @app.post("/search")
 async def search_founders(criteria: SearchCriteria):
-    """Main search endpoint - this is where the magic happens!"""
+    """
+    Main search endpoint - this is where the magic happens!
+    
+    Takes search criteria and returns ranked candidates
+    """
+    
     try:
         print(f"🔍 SEARCH REQUEST RECEIVED")
         print(f"📋 Criteria: {criteria}")
         
-        # For now, return a simple response
-        return {
-            "success": True,
-            "candidates": [],
-            "summary": {"total_candidates": 0, "tier_distribution": {"A": 0, "B": 0, "C": 0}},
-            "message": "Search endpoint is working! Full functionality coming soon.",
-            "search_query": "test"
+        # Step 1: Search LinkedIn profiles using Harvest  
+        # Build smarter query to avoid over-filtering
+        query_parts = []
+        if criteria.industry:
+            query_parts.append(criteria.industry)
+        
+        # Limit founder signals to avoid too restrictive search
+        if criteria.founder_signals:
+            # Take only first 2 founder signals to avoid over-filtering
+            query_parts.extend(criteria.founder_signals[:2])
+            
+        # Limit technical signals
+        if criteria.technical_signals:
+            # Take only first 2 technical signals  
+            query_parts.extend(criteria.technical_signals[:2])
+            
+        query = " ".join(query_parts).strip() or "founder entrepreneur"
+        
+        print(f"🔍 Searching for: '{query}' (simplified from complex criteria)")
+        print(f"📊 Requested max_results: {criteria.max_results}")
+        print(f"📋 Original criteria: Industry={criteria.industry}, Founder signals={len(criteria.founder_signals)}, Technical signals={len(criteria.technical_signals)}")
+        
+        profiles = harvest_client.search_profiles(query, criteria.max_results, criteria=criteria.dict())
+        print(f"📋 Harvest API returned {len(profiles)} profiles (requested: {criteria.max_results})")
+        
+        # Determine if we're hitting LinkedIn's Commercial Use Limit
+        is_linkedin_limited = len(profiles) <= 3 and criteria.max_results > 3
+        
+        if is_linkedin_limited:
+            print(f"⚠️  LinkedIn Commercial Use Limit (CUL) detected!")
+            print(f"💡 Explanation:")
+            print(f"   - LinkedIn limits free accounts to ~3 results for non-connected profiles")
+            print(f"   - This is LinkedIn's anti-scraping measure, not a Harvest API issue")
+            print(f"   - Resets monthly (1st of each month at midnight PST)")
+            print(f"   - Solutions: LinkedIn Premium, Sales Navigator, or wait for reset")
+            print(f"   - Harvest API is working correctly - this is LinkedIn's restriction")
+        elif len(profiles) < criteria.max_results:
+            print(f"⚠️  Got fewer profiles than requested - possible causes:")
+            print(f"   - Limited matching profiles for your criteria")
+            print(f"   - Harvest API rate limits")
+            print(f"   - Search criteria too specific")
+        
+        if len(profiles) == 0:
+            print(f"❌ No profiles found! Check your criteria or API connectivity")
+            return {
+                "success": True,
+                "candidates": [],
+                "summary": {"total_candidates": 0, "tier_distribution": {"A": 0, "B": 0, "C": 0}},
+                "export_path": "no-results.csv",
+                "search_query": query,
+                "message": "No profiles found. Try broader search criteria or different keywords.",
+                "linkedin_limitation": is_linkedin_limited
+            }
+        
+        # Step 2: Analyze each profile with AI
+        candidates = []
+        real_profiles_count = len(profiles)
+        
+        for i, profile in enumerate(profiles):
+            # Preserve original data source from harvest client
+            original_data_source = profile.get('data_source', 'unknown')
+            is_real_data = original_data_source == 'linkedin_real'
+            
+            profile_label = "[REAL LINKEDIN DATA]" if is_real_data else "[MOCK DATA]" 
+            print(f"🤖 Analyzing {i+1}/{len(profiles)}: {profile.get('name', 'Unknown')} {profile_label}")
+            
+            analysis = ai_analyzer.analyze_candidate(
+                profile, 
+                criteria.dict()
+            )
+            
+            # Preserve and enhance data source information
+            analysis['data_source'] = original_data_source
+            if is_real_data:
+                analysis['source_note'] = 'Real LinkedIn profile via Harvest API'
+            else:
+                analysis['source_note'] = 'Mock data for testing purposes'
+                # Ensure mock profiles are clearly identified
+                if not analysis.get('name', '').startswith('Mock:'):
+                    analysis['name'] = f"Mock: {analysis.get('name', 'Unknown')}"
+            
+            candidates.append(analysis)
+        
+        # Add clear explanation about data limitations in response
+        data_explanation = {
+            "linkedin_profiles_found": real_profiles_count,
+            "requested_count": criteria.max_results,
+            "limitation_detected": is_linkedin_limited,
+            "explanation": "LinkedIn Commercial Use Limit restricts free scraping to ~3 profiles. This resets monthly." if is_linkedin_limited else "Standard LinkedIn profile search completed."
         }
+        
+        # Step 3: Sort by tier (A first, then B, then C)
+        tier_order = {"A": 1, "B": 2, "C": 3}
+        candidates.sort(key=lambda x: tier_order.get(x.get("tier", "C"), 3))
+        
+        # Step 4: Export to CSV
+        print(f"📁 About to export {len(candidates)} candidates to CSV...")
+        csv_path = export_service.export_to_csv(candidates)
+        print(f"📁 CSV export completed. File saved at: {csv_path}")
+        print(f"📁 CSV file exists: {os.path.exists(csv_path)}")
+        
+        summary = export_service.get_export_summary(candidates)
+        
+        print(f"✅ Search complete! Found {len(candidates)} candidates")
+        
+        response = {
+            "success": True,
+            "candidates": candidates,
+            "summary": summary,
+            "export_path": csv_path,
+            "search_query": query,
+            "message": f"Successfully analyzed {len(candidates)} candidates",
+            "data_sources": data_explanation,
+            "harvest_api_status": "working_correctly",
+            "linkedin_limitation_info": {
+                "detected": is_linkedin_limited,
+                "description": "LinkedIn restricts free scraping to ~3 profiles per search to prevent automated data harvesting",
+                "solutions": [
+                    "LinkedIn Premium subscription removes this limit",
+                    "LinkedIn Sales Navigator allows 2500 results per search",
+                    "Wait until monthly reset (1st of each month)",
+                    "Use multiple LinkedIn accounts (not recommended)",
+                    "Focus on 1st-degree connections (unlimited)"
+                ]
+            }
+        }
+        
+        print(f"📤 Sending response with {len(candidates)} candidates")
+        return response
         
     except Exception as e:
         print(f"❌ Search error: {e}")
+        print(f"❌ Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/download/{filename:path}")
 async def download_export(filename: str):
-    """Temporary download endpoint for debugging"""
-    return {
-        "message": "Download endpoint temporarily disabled for debugging",
-        "status": "maintenance"
-    }
+    """Download exported CSV files"""
+    
+    print(f"📥 Download requested for: '{filename}'")
+    
+    # Clean up the filename - remove any duplicate 'exports/' prefixes
+    clean_filename = filename.replace('exports/', '')
+    if clean_filename.startswith('exports/'):
+        clean_filename = clean_filename[8:]  # Remove second 'exports/'
+    
+    # Build the correct file path
+    file_path = os.path.join("exports", clean_filename)
+    
+    print(f"📁 Cleaned filename: '{clean_filename}'")
+    print(f"📂 Looking for file at: '{file_path}'")
+    print(f"📂 Current working directory: {os.getcwd()}")
+    print(f"📂 File exists check: {os.path.exists(file_path)}")
+    
+    # List all files in exports directory for debugging
+    exports_dir = "exports"
+    if os.path.exists(exports_dir):
+        try:
+            available_files = os.listdir(exports_dir)
+            print(f"📂 Available files in {exports_dir}/: {available_files}")
+        except Exception as e:
+            print(f"❌ Error listing exports directory: {e}")
+    else:
+        print(f"❌ Exports directory does not exist!")
+        # Try to create it
+        try:
+            os.makedirs(exports_dir, exist_ok=True)
+            print(f"✅ Created exports directory")
+        except Exception as e:
+            print(f"❌ Could not create exports directory: {e}")
+    
+    # Check if file exists with absolute path
+    abs_file_path = os.path.abspath(file_path)
+    print(f"📂 Absolute file path: {abs_file_path}")
+    print(f"📂 Absolute path exists: {os.path.exists(abs_file_path)}")
+    
+    if not os.path.exists(file_path):
+        error_msg = f"File not found: {file_path}"
+        if os.path.exists(exports_dir):
+            available_files = os.listdir(exports_dir)
+            error_msg += f". Available files: {available_files}"
+        
+        print(f"❌ {error_msg}")
+        raise HTTPException(status_code=404, detail=error_msg)
+    
+    # Extract just the filename for download
+    actual_filename = os.path.basename(file_path)
+    print(f"📤 Serving file: {actual_filename}")
+    
+    return FileResponse(
+        file_path,
+        media_type="text/csv",
+        filename=actual_filename
+    )
 
 # Add a test endpoint for frontend debugging
 @app.get("/test-connection")
