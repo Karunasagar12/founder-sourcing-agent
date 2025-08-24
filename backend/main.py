@@ -19,11 +19,11 @@ from services.ai_analyzer import AIAnalyzer
 from services.export_service import ExportService
 from models import SearchCriteria, Candidate
 
-# Import authentication modules
-from auth_router import router as auth_router
-from database import create_tables
-from auth_models import Base
-from database import engine
+# Import authentication modules (lazy import to avoid database connection during startup)
+# from auth_router import router as auth_router
+# from database import create_tables
+# from auth_models import Base
+# from database import engine
 
 # Load environment variables
 load_dotenv()
@@ -82,8 +82,8 @@ export_service = ExportService()
 # if os.getenv("ENVIRONMENT", "development") == "development":
 #     Base.metadata.create_all(bind=engine)
 
-# Include authentication router
-app.include_router(auth_router)
+# Include authentication router (commented out to avoid database connection during startup)
+# app.include_router(auth_router)
 
 @app.get("/")
 async def root():
