@@ -35,19 +35,35 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS Configuration - This is the key fix!
+# CORS Configuration - Environment-based
+def get_cors_origins():
+    """Get CORS origins based on environment"""
+    environment = os.getenv("ENVIRONMENT", "development")
+    
+    if environment == "production":
+        # Production: Only allow Firebase domains
+        return [
+            "https://founder-sourcing-agent.web.app",
+            "https://founder-sourcing-agent.firebaseapp.com",
+            "https://founder-sourcing-agent.web.app/",
+            "https://founder-sourcing-agent.firebaseapp.com/"
+        ]
+    else:
+        # Development: Allow local development servers
+        return [
+            "http://localhost:3000",  # React dev server
+            "http://localhost:8080",  # Alternative dev server
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8080",
+            "http://localhost:5500",  # Live Server
+            "http://127.0.0.1:5500",
+            "file://",  # For local HTML files
+            "*"  # Allow all origins for development
+        ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React dev server
-        "http://localhost:8080",  # Alternative dev server
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "http://localhost:5500",  # Live Server
-        "http://127.0.0.1:5500",
-        "file://",  # For local HTML files
-        "*"  # Allow all origins for development (remove in production)
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

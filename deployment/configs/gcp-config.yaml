@@ -1,0 +1,69 @@
+# GCP Configuration for Founder Sourcing Agent
+# This file contains basic GCP project configuration
+
+project:
+  id: "founder-sourcing-agent"
+  name: "Founder Sourcing Agent"
+  region: "us-central1"
+  zone: "us-central1-a"
+
+services:
+  cloud_run:
+    backend:
+      name: "founder-sourcing-agent-backend"
+      memory: "1Gi"
+      cpu: "1"
+      max_instances: 10
+      min_instances: 0
+      concurrency: 80
+      timeout: 300
+  
+  cloud_sql:
+    instance:
+      name: "founder-sourcing-db"
+      version: "POSTGRES_14"
+      tier: "db-f1-micro"
+      storage_size: "10GB"
+      storage_type: "SSD"
+      backup_enabled: true
+      backup_start_time: "02:00"
+      maintenance_window:
+        day: "SUN"
+        hour: "03:00"
+    
+    database:
+      name: "founder_sourcing_agent"
+      user: "founder_app"
+    
+  firebase:
+    project_id: "founder-sourcing-agent"
+    hosting:
+      site: "founder-sourcing-agent"
+      public: "dist"
+
+security:
+  service_account:
+    name: "founder-sourcing-sa"
+    display_name: "Founder Sourcing Agent Service Account"
+    roles:
+      - "roles/cloudsql.client"
+      - "roles/secretmanager.secretAccessor"
+      - "roles/logging.logWriter"
+      - "roles/monitoring.metricWriter"
+
+monitoring:
+  enabled: true
+  log_level: "info"
+  metrics:
+    - "cloud_run_requests"
+    - "cloud_run_latency"
+    - "cloud_sql_connections"
+    - "cloud_sql_cpu_utilization"
+
+cost_optimization:
+  cloud_run:
+    min_instances: 0  # Scale to zero when not in use
+    max_instances: 10  # Limit maximum instances
+  cloud_sql:
+    tier: "db-f1-micro"  # Smallest instance for demo
+    storage_size: "10GB"  # Minimum storage
