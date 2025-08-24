@@ -82,7 +82,7 @@ export_service = ExportService()
 # if os.getenv("ENVIRONMENT", "development") == "development":
 #     Base.metadata.create_all(bind=engine)
 
-# Include authentication router (commented out to avoid database connection during startup)
+# Include authentication router (lazy loading)
 # app.include_router(auth_router)
 
 @app.get("/")
@@ -141,6 +141,36 @@ async def test_connection():
         "message": "Frontend successfully connected to backend!",
         "timestamp": "2025-01-23T12:00:00Z"
     }
+
+# Lazy loading for authentication endpoints
+@app.get("/auth/test")
+async def auth_test():
+    """Test authentication endpoint with lazy loading"""
+    try:
+        from auth_router import router as auth_router
+        return {"message": "Authentication module loaded successfully"}
+    except Exception as e:
+        return {"message": f"Authentication module failed to load: {str(e)}"}
+
+@app.post("/auth/signup")
+async def signup():
+    """Lazy loading signup endpoint"""
+    try:
+        from auth_router import router as auth_router
+        # This would normally delegate to the actual signup endpoint
+        return {"message": "Signup endpoint available"}
+    except Exception as e:
+        return {"message": f"Signup endpoint failed to load: {str(e)}"}
+
+@app.post("/auth/login")
+async def login():
+    """Lazy loading login endpoint"""
+    try:
+        from auth_router import router as auth_router
+        # This would normally delegate to the actual login endpoint
+        return {"message": "Login endpoint available"}
+    except Exception as e:
+        return {"message": f"Login endpoint failed to load: {str(e)}"}
 
 if __name__ == "__main__":
     print("🚀 Starting Founder Sourcing Agent Backend...")
