@@ -13,11 +13,11 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-# Import our services (commented out for debugging)
-# from services.harvest_client import HarvestClient
-# from services.ai_analyzer import AIAnalyzer  
-# from services.export_service import ExportService
-# from models import SearchCriteria, Candidate
+# Import our services
+from services.harvest_client import HarvestClient
+from services.ai_analyzer import AIAnalyzer  
+from services.export_service import ExportService
+from models import SearchCriteria, Candidate
 
 # Import authentication modules (commented out for debugging)
 # from auth_router import router as auth_router
@@ -73,10 +73,10 @@ app.add_middleware(
 if os.path.exists("frontend"):
     app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-# Initialize services (commented out for debugging)
-# harvest_client = HarvestClient()
-# ai_analyzer = AIAnalyzer()
-# export_service = ExportService()
+# Initialize services
+harvest_client = HarvestClient()
+ai_analyzer = AIAnalyzer()
+export_service = ExportService()
 
 # Create database tables (only in development)
 # if os.getenv("ENVIRONMENT", "development") == "development":
