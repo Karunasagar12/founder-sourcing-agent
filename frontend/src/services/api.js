@@ -2,6 +2,7 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+// Create axios instance with authentication interceptors
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -14,6 +15,9 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+    console.log('🔐 Adding auth token to request:', config.url)
+  } else {
+    console.log('⚠️ No auth token found for request:', config.url)
   }
   return config
 })
@@ -23,6 +27,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.log('🔐 Token expired, redirecting to login')
       localStorage.removeItem('authToken')
       sessionStorage.removeItem('authToken')
       window.location.href = '/login'
