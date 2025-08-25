@@ -39,12 +39,15 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, rememberMe = false) => {
     try {
       setError(null)
-      const { user: userData, token } = await authService.login(email, password)
+      const response = await authService.login(email, password)
+      
+      // Extract token and user from response
+      const { access_token, user: userData } = response
       
       if (rememberMe) {
-        localStorage.setItem('authToken', token)
+        localStorage.setItem('authToken', access_token)
       } else {
-        sessionStorage.setItem('authToken', token)
+        sessionStorage.setItem('authToken', access_token)
       }
       
       setUser(userData)
@@ -58,9 +61,12 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       setError(null)
-      const { user: newUser, token } = await authService.signup(userData)
+      const response = await authService.signup(userData)
       
-      localStorage.setItem('authToken', token)
+      // Extract token and user from response
+      const { access_token, user: newUser } = response
+      
+      localStorage.setItem('authToken', access_token)
       setUser(newUser)
       return { success: true }
     } catch (error) {
