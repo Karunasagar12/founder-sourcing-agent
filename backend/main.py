@@ -3,7 +3,7 @@ Main FastAPI server for the Founder Sourcing Agent
 Updated with proper CORS configuration for frontend connection
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -441,21 +441,34 @@ async def create_test_user_endpoint():
         }
 
 @app.get("/search-history")
-async def get_search_history():
+async def get_search_history(request: Request):
     """Get search history for the current user"""
     try:
-        from auth_dependencies import get_current_user
+        from auth_service import AuthService
         from database import get_db
         from search_history_service import SearchHistoryService
         
-        db = next(get_db())
-        current_user = get_current_user(db)
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return {"success": False, "error": "Authentication required"}
         
-        if not current_user:
-            return {"error": "Authentication required"}
+        token = auth_header.split(" ")[1]
+        
+        db = next(get_db())
+        auth_service = AuthService(db)
+        
+        # Verify token and get user
+        email = auth_service.verify_token(token)
+        if not email:
+            return {"success": False, "error": "Invalid token"}
+        
+        user = auth_service.get_user_by_email(email)
+        if not user:
+            return {"success": False, "error": "User not found"}
         
         search_history_service = SearchHistoryService(db)
-        history = search_history_service.get_user_search_history(current_user.id)
+        history = search_history_service.get_user_search_history(user.id)
         
         # Convert to JSON-serializable format
         history_data = []
@@ -482,24 +495,37 @@ async def get_search_history():
         }
 
 @app.get("/search-history/{search_id}")
-async def get_search_result(search_id: int):
+async def get_search_result(search_id: int, request: Request):
     """Get a specific search result with candidates"""
     try:
-        from auth_dependencies import get_current_user
+        from auth_service import AuthService
         from database import get_db
         from search_history_service import SearchHistoryService
         
-        db = next(get_db())
-        current_user = get_current_user(db)
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return {"success": False, "error": "Authentication required"}
         
-        if not current_user:
-            return {"error": "Authentication required"}
+        token = auth_header.split(" ")[1]
+        
+        db = next(get_db())
+        auth_service = AuthService(db)
+        
+        # Verify token and get user
+        email = auth_service.verify_token(token)
+        if not email:
+            return {"success": False, "error": "Invalid token"}
+        
+        user = auth_service.get_user_by_email(email)
+        if not user:
+            return {"success": False, "error": "User not found"}
         
         search_history_service = SearchHistoryService(db)
-        search_result = search_history_service.get_search_result_by_id(search_id, current_user.id)
+        search_result = search_history_service.get_search_result_by_id(search_id, user.id)
         
         if not search_result:
-            return {"error": "Search result not found"}
+            return {"success": False, "error": "Search result not found"}
         
         # Convert candidates to JSON-serializable format
         candidates_data = []
@@ -544,26 +570,39 @@ async def get_search_result(search_id: int):
         }
 
 @app.delete("/search-history/{search_id}")
-async def delete_search_result(search_id: int):
+async def delete_search_result(search_id: int, request: Request):
     """Delete a search result"""
     try:
-        from auth_dependencies import get_current_user
+        from auth_service import AuthService
         from database import get_db
         from search_history_service import SearchHistoryService
         
-        db = next(get_db())
-        current_user = get_current_user(db)
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return {"success": False, "error": "Authentication required"}
         
-        if not current_user:
-            return {"error": "Authentication required"}
+        token = auth_header.split(" ")[1]
+        
+        db = next(get_db())
+        auth_service = AuthService(db)
+        
+        # Verify token and get user
+        email = auth_service.verify_token(token)
+        if not email:
+            return {"success": False, "error": "Invalid token"}
+        
+        user = auth_service.get_user_by_email(email)
+        if not user:
+            return {"success": False, "error": "User not found"}
         
         search_history_service = SearchHistoryService(db)
-        success = search_history_service.delete_search_result(search_id, current_user.id)
+        success = search_history_service.delete_search_result(search_id, user.id)
         
         if success:
             return {"success": True, "message": "Search result deleted"}
         else:
-            return {"error": "Search result not found"}
+            return {"success": False, "error": "Search result not found"}
         
     except Exception as e:
         return {
@@ -572,21 +611,34 @@ async def delete_search_result(search_id: int):
         }
 
 @app.get("/search-statistics")
-async def get_search_statistics():
+async def get_search_statistics(request: Request):
     """Get search statistics for the current user"""
     try:
-        from auth_dependencies import get_current_user
+        from auth_service import AuthService
         from database import get_db
         from search_history_service import SearchHistoryService
         
-        db = next(get_db())
-        current_user = get_current_user(db)
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return {"success": False, "error": "Authentication required"}
         
-        if not current_user:
-            return {"error": "Authentication required"}
+        token = auth_header.split(" ")[1]
+        
+        db = next(get_db())
+        auth_service = AuthService(db)
+        
+        # Verify token and get user
+        email = auth_service.verify_token(token)
+        if not email:
+            return {"success": False, "error": "Invalid token"}
+        
+        user = auth_service.get_user_by_email(email)
+        if not user:
+            return {"success": False, "error": "User not found"}
         
         search_history_service = SearchHistoryService(db)
-        stats = search_history_service.get_search_statistics(current_user.id)
+        stats = search_history_service.get_search_statistics(user.id)
         
         return {
             "success": True,
