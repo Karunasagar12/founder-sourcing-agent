@@ -39,20 +39,34 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, rememberMe = false) => {
     try {
       setError(null)
+      console.log('🔐 Starting login process...')
+      
       const response = await authService.login(email, password)
+      console.log('🔐 Login response:', response)
       
       // Extract token and user from response
       const { access_token, user: userData } = response
+      console.log('🔐 Extracted access_token:', access_token)
+      console.log('🔐 Extracted user:', userData)
       
       if (rememberMe) {
         localStorage.setItem('authToken', access_token)
+        console.log('🔐 Token stored in localStorage')
       } else {
         sessionStorage.setItem('authToken', access_token)
+        console.log('🔐 Token stored in sessionStorage')
       }
       
+      // Verify token was stored
+      const storedToken = rememberMe ? localStorage.getItem('authToken') : sessionStorage.getItem('authToken')
+      console.log('🔐 Verified stored token:', storedToken)
+      
       setUser(userData)
+      console.log('🔐 User set in context')
+      
       return { success: true }
     } catch (error) {
+      console.error('🔐 Login error:', error)
       setError(error.message || 'Login failed')
       return { success: false, error: error.message }
     }
