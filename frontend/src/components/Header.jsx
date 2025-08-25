@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Search, Users, BarChart3 } from 'lucide-react'
+import { Search, Users, BarChart3, Info } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import UserMenu from './user/UserMenu'
 
@@ -11,6 +11,7 @@ const Header = () => {
   const navItems = [
     { path: '/', label: 'Search', icon: Search },
     { path: '/results', label: 'Results', icon: Users },
+    { path: '/about', label: 'About', icon: Info },
   ]
 
   return (
@@ -62,12 +63,13 @@ const Header = () => {
 
           <div className="flex items-center space-x-4">
             {/* Navigation */}
-            {isAuthenticated && (
-              <nav className="flex items-center space-x-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon
-                  const isActive = location.pathname === item.path
-                  
+            <nav className="flex items-center space-x-1">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const isActive = location.pathname === item.path
+                
+                // Show About tab to everyone, but Search and Results only to authenticated users
+                if (item.path === '/about' || isAuthenticated) {
                   return (
                     <Link
                       key={item.path}
@@ -82,9 +84,10 @@ const Header = () => {
                       <span>{item.label}</span>
                     </Link>
                   )
-                })}
-              </nav>
-            )}
+                }
+                return null
+              })}
+            </nav>
 
             {/* User Menu or Auth Links */}
             {isAuthenticated ? (
