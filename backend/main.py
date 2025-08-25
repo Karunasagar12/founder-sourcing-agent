@@ -335,6 +335,165 @@ async def test_connection():
         "timestamp": "2025-01-23T12:00:00Z"
     }
 
+@app.get("/search-history")
+async def get_search_history():
+    """Get search history for the current user"""
+    try:
+        from auth_dependencies import get_current_user
+        from database import get_db
+        from search_history_service import SearchHistoryService
+        
+        db = next(get_db())
+        current_user = get_current_user(db)
+        
+        if not current_user:
+            return {"error": "Authentication required"}
+        
+        search_history_service = SearchHistoryService(db)
+        history = search_history_service.get_user_search_history(current_user.id)
+        
+        # Convert to JSON-serializable format
+        history_data = []
+        for result in history:
+            history_data.append({
+                "id": result.id,
+                "search_query": result.search_query,
+                "industry": result.industry,
+                "total_candidates": result.total_candidates,
+                "tier_distribution": result.tier_distribution,
+                "created_at": result.created_at.isoformat(),
+                "csv_filename": result.csv_filename
+            })
+        
+        return {
+            "success": True,
+            "history": history_data
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/search-history/{search_id}")
+async def get_search_result(search_id: int):
+    """Get a specific search result with candidates"""
+    try:
+        from auth_dependencies import get_current_user
+        from database import get_db
+        from search_history_service import SearchHistoryService
+        
+        db = next(get_db())
+        current_user = get_current_user(db)
+        
+        if not current_user:
+            return {"error": "Authentication required"}
+        
+        search_history_service = SearchHistoryService(db)
+        search_result = search_history_service.get_search_result_by_id(search_id, current_user.id)
+        
+        if not search_result:
+            return {"error": "Search result not found"}
+        
+        # Convert candidates to JSON-serializable format
+        candidates_data = []
+        for candidate in search_result.candidates:
+            candidates_data.append({
+                "name": candidate.name,
+                "linkedin_url": candidate.linkedin_url,
+                "email": candidate.email,
+                "current_company": candidate.current_company,
+                "current_role": candidate.current_role,
+                "tier": candidate.tier,
+                "profile_type": candidate.profile_type,
+                "summary": candidate.summary,
+                "match_justification": candidate.match_justification,
+                "confidence_score": candidate.confidence_score,
+                "contacts": candidate.contacts,
+                "source_links": candidate.source_links,
+                "data_source": candidate.data_source,
+                "source_note": candidate.source_note
+            })
+        
+        return {
+            "success": True,
+            "search_result": {
+                "id": search_result.id,
+                "search_query": search_result.search_query,
+                "search_criteria": search_result.search_criteria,
+                "industry": search_result.industry,
+                "total_candidates": search_result.total_candidates,
+                "tier_distribution": search_result.tier_distribution,
+                "profile_distribution": search_result.profile_distribution,
+                "created_at": search_result.created_at.isoformat(),
+                "csv_filename": search_result.csv_filename,
+                "candidates": candidates_data
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.delete("/search-history/{search_id}")
+async def delete_search_result(search_id: int):
+    """Delete a search result"""
+    try:
+        from auth_dependencies import get_current_user
+        from database import get_db
+        from search_history_service import SearchHistoryService
+        
+        db = next(get_db())
+        current_user = get_current_user(db)
+        
+        if not current_user:
+            return {"error": "Authentication required"}
+        
+        search_history_service = SearchHistoryService(db)
+        success = search_history_service.delete_search_result(search_id, current_user.id)
+        
+        if success:
+            return {"success": True, "message": "Search result deleted"}
+        else:
+            return {"error": "Search result not found"}
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/search-statistics")
+async def get_search_statistics():
+    """Get search statistics for the current user"""
+    try:
+        from auth_dependencies import get_current_user
+        from database import get_db
+        from search_history_service import SearchHistoryService
+        
+        db = next(get_db())
+        current_user = get_current_user(db)
+        
+        if not current_user:
+            return {"error": "Authentication required"}
+        
+        search_history_service = SearchHistoryService(db)
+        stats = search_history_service.get_search_statistics(current_user.id)
+        
+        return {
+            "success": True,
+            "statistics": stats
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 # Lazy loading for authentication endpoints
 @app.get("/auth/test")
 async def auth_test():
