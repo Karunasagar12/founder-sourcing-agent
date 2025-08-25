@@ -61,20 +61,29 @@ const LoginForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    console.log('🔍 LoginForm: handleSubmit called')
+    console.log('🔍 LoginForm: formData:', formData)
+    
     if (!validateForm()) {
+      console.log('🔍 LoginForm: validation failed')
       return
     }
     
     setIsLoading(true)
+    console.log('🔍 LoginForm: calling login function...')
     
     try {
       const result = await login(formData.email, formData.password, formData.rememberMe)
+      console.log('🔍 LoginForm: login result:', result)
       
       if (result.success) {
+        console.log('🔍 LoginForm: login successful, navigating...')
         navigate(from, { replace: true })
+      } else {
+        console.log('🔍 LoginForm: login failed:', result.error)
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('🔍 LoginForm: login error:', error)
     } finally {
       setIsLoading(false)
     }
