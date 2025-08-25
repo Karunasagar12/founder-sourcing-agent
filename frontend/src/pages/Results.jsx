@@ -223,46 +223,55 @@ const Results = () => {
 
       {/* Search History Section */}
       {isAuthenticated && searchHistory.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="card">
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center space-x-2 mb-6">
               <History className="h-5 w-5 text-primary-600" />
               <h3 className="text-lg font-semibold text-gray-900">Search History</h3>
+              <span className="text-sm text-gray-500">({searchHistory.length} searches)</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {searchHistory.slice(0, 6).map((search) => (
+            
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {searchHistory.map((search) => (
                 <div
                   key={search.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                     currentSearchId === search.id
-                      ? 'border-primary-500 bg-primary-50'
+                      ? 'border-primary-500 bg-primary-50 shadow-sm'
                       : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                   }`}
                   onClick={() => loadSearchFromHistory(search.id)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 truncate">
-                        {search.search_query || 'Search'}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {search.industry && `${search.industry} • `}
-                        {search.total_candidates} candidates
-                      </p>
-                      <div className="flex items-center space-x-1 mt-2">
-                        <Clock className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500">
-                          {new Date(search.created_at).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h4 className="font-medium text-gray-900 truncate">
+                          {search.search_query || 'Search'}
+                        </h4>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {search.industry}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <span className="flex items-center space-x-1">
+                          <Users className="h-3 w-3" />
+                          <span>{search.total_candidates} candidates</span>
+                        </span>
+                        <span className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{new Date(search.created_at).toLocaleDateString()}</span>
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
+                    
+                    <div className="flex-shrink-0 ml-4">
                       {search.tier_distribution && (
                         <div className="flex space-x-1">
                           {Object.entries(search.tier_distribution).map(([tier, count]) => (
                             <span
                               key={tier}
-                              className={`px-2 py-1 text-xs rounded-full ${
+                              className={`px-2 py-1 text-xs rounded-full font-medium ${
                                 tier === 'A' ? 'bg-green-100 text-green-800' :
                                 tier === 'B' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-gray-100 text-gray-800'
