@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import CandidateCard from '../components/CandidateCard'
 import CandidateModal from '../components/CandidateModal'
 import FilterPanel from '../components/FilterPanel'
-import { Download, ArrowLeft, Users } from 'lucide-react'
+import { Download, ArrowLeft, Users, History, Clock } from 'lucide-react'
+import { searchAPI } from '../services/api'
 
 const Results = () => {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [candidates, setCandidates] = useState([])
   const [filteredCandidates, setFilteredCandidates] = useState([])
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchHistory, setSearchHistory] = useState([])
+  const [currentSearchId, setCurrentSearchId] = useState(null)
   const [filters, setFilters] = useState({
     tier: 'all',
     profileType: 'all'
   })
   const [sortBy, setSortBy] = useState('relevance')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadResults()
@@ -26,18 +32,50 @@ const Results = () => {
     applyFiltersAndSort()
   }, [candidates, filters, sortBy, searchTerm])
 
-  const loadResults = () => {
+  const loadResults = async () => {
+    setIsLoading(true)
+    
+    // Load current search results from localStorage
     const storedResults = localStorage.getItem('searchResults')
     if (storedResults) {
       try {
         const results = JSON.parse(storedResults)
-        setCandidates(results.candidates || results || [])
+        const currentCandidates = results.candidates || results || []
+        setCandidates(currentCandidates)
+        setCurrentSearchId(results.search_result_id || null)
       } catch (error) {
         console.error('Error parsing stored results:', error)
-        navigate('/')
       }
-    } else {
-      navigate('/')
+    }
+
+    // Load search history from database if authenticated
+    if (isAuthenticated) {
+      try {
+        const historyResponse = await searchAPI.getSearchHistory()
+        if (historyResponse.success) {
+          setSearchHistory(historyResponse.history || [])
+        }
+      } catch (error) {
+        console.error('Error loading search history:', error)
+      }
+    }
+
+    setIsLoading(false)
+  }
+
+  const loadSearchFromHistory = async (searchId) => {
+    try {
+      const response = await searchAPI.getSearchResult(searchId)
+      if (response.success) {
+        setCandidates(response.search_result.candidates || [])
+        setCurrentSearchId(searchId)
+        
+        // Update localStorage with the loaded search
+        localStorage.setItem('searchResults', JSON.stringify(response.search_result))
+        localStorage.setItem('searchTimestamp', response.search_result.created_at)
+      }
+    } catch (error) {
+      console.error('Error loading search from history:', error)
     }
   }
 
@@ -183,6 +221,67 @@ const Results = () => {
         </button>
       </div>
 
+      {/* Search History Section */}
+      {isAuthenticated && searchHistory.length > 0 && (
+        <div className="mb-6">
+          <div className="card">
+            <div className="flex items-center space-x-2 mb-4">
+              <History className="h-5 w-5 text-primary-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Search History</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchHistory.slice(0, 6).map((search) => (
+                <div
+                  key={search.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    currentSearchId === search.id
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => loadSearchFromHistory(search.id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 truncate">
+                        {search.search_query || 'Search'}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {search.industry && `${search.industry} • `}
+                        {search.total_candidates} candidates
+                      </p>
+                      <div className="flex items-center space-x-1 mt-2">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs text-gray-500">
+                          {new Date(search.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {search.tier_distribution && (
+                        <div className="flex space-x-1">
+                          {Object.entries(search.tier_distribution).map(([tier, count]) => (
+                            <span
+                              key={tier}
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                tier === 'A' ? 'bg-green-100 text-green-800' :
+                                tier === 'B' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {tier}: {count}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Panel */}
       <FilterPanel
         filters={filters}
@@ -195,7 +294,11 @@ const Results = () => {
       />
 
       {/* Results */}
-      {filteredCandidates.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p>Loading search results...</p>
+        </div>
+      ) : filteredCandidates.length === 0 ? (
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No candidates found</h3>

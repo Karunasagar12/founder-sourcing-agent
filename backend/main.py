@@ -363,6 +363,30 @@ async def test_connection():
         "timestamp": "2025-01-23T12:00:00Z"
     }
 
+@app.get("/init-database")
+async def init_database():
+    """Initialize database tables (for production)"""
+    try:
+        from database import engine
+        from auth_models import Base
+        from search_models import SearchResult, SearchCandidate
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        
+        return {
+            "success": True,
+            "message": "Database tables created successfully",
+            "tables": ["users", "search_results", "search_candidates"]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to create database tables"
+        }
+
 @app.get("/create-test-user")
 async def create_test_user_endpoint():
     """Create a default test user for easy access"""
