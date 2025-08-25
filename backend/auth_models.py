@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
 # For EmailStr validation (fallback if not available)
@@ -25,8 +24,8 @@ except ImportError:
                 raise ValueError('valid email required')
             return v
 
-# SQLAlchemy Base
-Base = declarative_base()
+# Import Base from database.py to ensure all models use the same Base
+from database import Base
 
 # Database Models
 class User(Base):
