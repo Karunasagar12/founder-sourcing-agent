@@ -390,16 +390,16 @@ async def init_database():
         print("🔧 Verifying tables...")
         with engine.connect() as connection:
             # Check if search_results table exists
-            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'search_results')")
-            search_results_exists = result.scalar()
+            result = connection.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'search_results'")
+            search_results_exists = result.scalar() > 0
             
             # Check if search_candidates table exists
-            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'search_candidates')")
-            search_candidates_exists = result.scalar()
+            result = connection.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'search_candidates'")
+            search_candidates_exists = result.scalar() > 0
             
             # Check if users table exists
-            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')")
-            users_exists = result.scalar()
+            result = connection.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'users'")
+            users_exists = result.scalar() > 0
         
         tables_status = {
             "users": users_exists,
