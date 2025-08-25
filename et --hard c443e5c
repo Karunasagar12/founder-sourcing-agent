@@ -1,0 +1,5 @@
+[33ma3426c9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m  Fix naming conflict in Search.jsx - Rename Search icon import to SearchIcon to avoid conflict with Search component
+[33me86c7ab[m  Transform website to match The Pioneers VC design - Bold typography with italicized emphasis - Clean black/white color scheme - Modern minimalist aesthetic - Improved search history UI - Enhanced form styling and layout - Professional card designs with hover effects
+[33mc443e5c[m Improve search history UI - better layout, readability, and visual hierarchy
+[33m2412e02[m Remove debug logging - authentication and search history now working properly
+[33m115c1de[m Add debug logging to LoginForm to troubleshoot login process
