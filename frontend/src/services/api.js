@@ -9,6 +9,28 @@ const api = axios.create({
   },
 })
 
+// Add auth token to requests if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken')
+      sessionStorage.removeItem('authToken')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const searchAPI = {
   // Search for founders
   search: async (criteria) => {
@@ -39,6 +61,50 @@ export const searchAPI = {
       return response.data
     } catch (error) {
       console.error('Export error:', error)
+      throw error
+    }
+  },
+
+  // Get search history
+  getSearchHistory: async () => {
+    try {
+      const response = await api.get('/search-history')
+      return response.data
+    } catch (error) {
+      console.error('Get search history error:', error)
+      throw error
+    }
+  },
+
+  // Get specific search result
+  getSearchResult: async (searchId) => {
+    try {
+      const response = await api.get(`/search-history/${searchId}`)
+      return response.data
+    } catch (error) {
+      console.error('Get search result error:', error)
+      throw error
+    }
+  },
+
+  // Delete search result
+  deleteSearchResult: async (searchId) => {
+    try {
+      const response = await api.delete(`/search-history/${searchId}`)
+      return response.data
+    } catch (error) {
+      console.error('Delete search result error:', error)
+      throw error
+    }
+  },
+
+  // Get search statistics
+  getSearchStatistics: async () => {
+    try {
+      const response = await api.get('/search-statistics')
+      return response.data
+    } catch (error) {
+      console.error('Get search statistics error:', error)
       throw error
     }
   }

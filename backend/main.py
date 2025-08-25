@@ -20,10 +20,10 @@ from services.export_service import ExportService
 from models import SearchCriteria, Candidate
 
 # Import authentication modules (lazy import to avoid database connection during startup)
-# from auth_router import router as auth_router
-# from database import create_tables
-# from auth_models import Base
-# from database import engine
+from auth_router import router as auth_router
+from database import create_tables
+from auth_models import Base
+from database import engine
 
 # Load environment variables
 load_dotenv()
@@ -79,11 +79,13 @@ ai_analyzer = AIAnalyzer()
 export_service = ExportService()
 
 # Create database tables (only in development)
-# if os.getenv("ENVIRONMENT", "development") == "development":
-#     Base.metadata.create_all(bind=engine)
+if os.getenv("ENVIRONMENT", "development") == "development":
+    Base.metadata.create_all(bind=engine)
+    # Import search models to ensure they're created
+    from search_models import SearchResult, SearchCandidate
 
 # Include authentication router (lazy loading)
-# app.include_router(auth_router)
+app.include_router(auth_router)
 
 @app.get("/")
 async def root():
@@ -256,6 +258,32 @@ async def search_founders(criteria: SearchCriteria):
         }
         
         print(f"📤 Sending response with {len(candidates)} candidates")
+        
+        # Save search results to database if user is authenticated
+        try:
+            from auth_dependencies import get_current_user
+            from database import get_db
+            from search_history_service import SearchHistoryService
+            
+            # Try to get current user (will fail if not authenticated)
+            db = next(get_db())
+            current_user = get_current_user(db)
+            
+            if current_user:
+                # Save search results
+                search_history_service = SearchHistoryService(db)
+                saved_result = search_history_service.save_search_result(
+                    user_id=current_user.id,
+                    search_criteria=criteria.dict(),
+                    search_response=response
+                )
+                print(f"💾 Search results saved to database with ID: {saved_result.id}")
+                response["search_result_id"] = saved_result.id
+                
+        except Exception as save_error:
+            print(f"⚠️  Could not save search results: {save_error}")
+            # Continue without saving - this is not critical
+        
         return response
         
     except Exception as e:
@@ -334,6 +362,59 @@ async def test_connection():
         "message": "Frontend successfully connected to backend!",
         "timestamp": "2025-01-23T12:00:00Z"
     }
+
+@app.get("/create-test-user")
+async def create_test_user_endpoint():
+    """Create a default test user for easy access"""
+    try:
+        from auth_service import AuthService
+        from auth_models import UserCreate
+        from database import get_db
+        
+        # Test user credentials
+        test_user_data = UserCreate(
+            email="test@founder-sourcing.com",
+            password="TestPassword123!",
+            first_name="Test",
+            last_name="User",
+            company="Founder Sourcing Agent"
+        )
+        
+        # Get database session
+        db = next(get_db())
+        auth_service = AuthService(db)
+        
+        # Check if test user already exists
+        existing_user = auth_service.get_user_by_email(test_user_data.email)
+        if existing_user:
+            return {
+                "success": True,
+                "message": "Test user already exists!",
+                "credentials": {
+                    "email": "test@founder-sourcing.com",
+                    "password": "TestPassword123!"
+                }
+            }
+        
+        # Create test user
+        user = auth_service.create_user(test_user_data)
+        
+        return {
+            "success": True,
+            "message": "Test user created successfully!",
+            "credentials": {
+                "email": "test@founder-sourcing.com",
+                "password": "TestPassword123!"
+            },
+            "user_id": user.id
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to create test user"
+        }
 
 @app.get("/search-history")
 async def get_search_history():

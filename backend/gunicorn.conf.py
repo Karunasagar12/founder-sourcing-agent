@@ -12,7 +12,7 @@ worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000
 max_requests = 1000
 max_requests_jitter = 50
-timeout = 30
+timeout = 120
 keepalive = 2
 
 # Restart workers after this many requests, to help prevent memory leaks
