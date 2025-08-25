@@ -53,9 +53,12 @@ jobs:
         name: frontend-build
         path: frontend/dist
     
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
+    
     - name: Deploy to Firebase
       run: |
         cd frontend
-        npx firebase deploy --only hosting --token "$FIREBASE_TOKEN" --project founder-sourcing-agent
+        firebase deploy --only hosting --token "$FIREBASE_TOKEN" --project founder-sourcing-agent
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
