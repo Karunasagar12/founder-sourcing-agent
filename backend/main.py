@@ -119,7 +119,7 @@ async def health_check():
     }
 
 @app.post("/search")
-async def search_founders(criteria: SearchCriteria):
+async def search_founders(criteria: SearchCriteria, request: Request):
     """
     Main search endpoint - this is where the magic happens!
     
@@ -261,24 +261,32 @@ async def search_founders(criteria: SearchCriteria):
         
         # Save search results to database if user is authenticated
         try:
-            from auth_dependencies import get_current_user
+            from auth_service import AuthService
             from database import get_db
             from search_history_service import SearchHistoryService
             
-            # Try to get current user (will fail if not authenticated)
-            db = next(get_db())
-            current_user = get_current_user(db)
-            
-            if current_user:
-                # Save search results
-                search_history_service = SearchHistoryService(db)
-                saved_result = search_history_service.save_search_result(
-                    user_id=current_user.id,
-                    search_criteria=criteria.dict(),
-                    search_response=response
-                )
-                print(f"💾 Search results saved to database with ID: {saved_result.id}")
-                response["search_result_id"] = saved_result.id
+            # Extract token from Authorization header
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                
+                db = next(get_db())
+                auth_service = AuthService(db)
+                
+                # Verify token and get user
+                email = auth_service.verify_token(token)
+                if email:
+                    user = auth_service.get_user_by_email(email)
+                    if user:
+                        # Save search results
+                        search_history_service = SearchHistoryService(db)
+                        saved_result = search_history_service.save_search_result(
+                            user_id=user.id,
+                            search_criteria=criteria.dict(),
+                            search_response=response
+                        )
+                        print(f"💾 Search results saved to database with ID: {saved_result.id}")
+                        response["search_result_id"] = saved_result.id
                 
         except Exception as save_error:
             print(f"⚠️  Could not save search results: {save_error}")
