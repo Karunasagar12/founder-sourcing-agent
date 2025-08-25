@@ -375,20 +375,55 @@ async def test_connection():
 async def init_database():
     """Initialize database tables (for production)"""
     try:
-        from database import engine
-        from auth_models import Base
+        from database import engine, Base
+        from auth_models import User
         from search_models import SearchResult, SearchCandidate
         
+        # Import all models to ensure they're registered with Base
+        print("🔧 Importing models...")
+        
         # Create all tables
+        print("🔧 Creating tables...")
         Base.metadata.create_all(bind=engine)
         
-        return {
-            "success": True,
-            "message": "Database tables created successfully",
-            "tables": ["users", "search_results", "search_candidates"]
+        # Verify tables were created by checking if they exist
+        print("🔧 Verifying tables...")
+        with engine.connect() as connection:
+            # Check if search_results table exists
+            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'search_results')")
+            search_results_exists = result.scalar()
+            
+            # Check if search_candidates table exists
+            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'search_candidates')")
+            search_candidates_exists = result.scalar()
+            
+            # Check if users table exists
+            result = connection.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')")
+            users_exists = result.scalar()
+        
+        tables_status = {
+            "users": users_exists,
+            "search_results": search_results_exists,
+            "search_candidates": search_candidates_exists
         }
         
+        all_tables_exist = all(tables_status.values())
+        
+        if all_tables_exist:
+            return {
+                "success": True,
+                "message": "Database tables created and verified successfully",
+                "tables": tables_status
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Some tables were not created: {tables_status}",
+                "message": "Failed to create all database tables"
+            }
+        
     except Exception as e:
+        print(f"❌ Database initialization error: {e}")
         return {
             "success": False,
             "error": str(e),
